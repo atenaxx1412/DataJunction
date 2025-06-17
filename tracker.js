@@ -440,16 +440,46 @@
   // グローバルに公開
   window.DataJunction = DataJunction;
 
-  // 自動初期化（data-* 属性から設定を読み取り）
+  // 自動初期化（data-* 属性 + 環境変数から設定を読み取り）
   document.addEventListener('DOMContentLoaded', function() {
     const scripts = document.querySelectorAll('script[src*="datajunction"]');
     const script = scripts[scripts.length - 1];
     
-    if (script && script.dataset.gasUrl) {
+    // 環境変数またはwindow.ENVから設定を取得
+    const getEnvValue = (key, defaultValue) => {
+      // 1. window.DATAJUNCTION_CONFIG から取得
+      if (window.DATAJUNCTION_CONFIG && window.DATAJUNCTION_CONFIG[key]) {
+        return window.DATAJUNCTION_CONFIG[key];
+      }
+      
+      // 2. window.ENV から取得
+      if (window.ENV && window.ENV[key]) {
+        return window.ENV[key];
+      }
+      
+      // 3. data属性から取得
+      if (script && script.dataset[key.toLowerCase().replace(/_/g, '')]) {
+        return script.dataset[key.toLowerCase().replace(/_/g, '')];
+      }
+      
+      // 4. 変数名として設定されている場合の処理
+      if (defaultValue && defaultValue.startsWith('$')) {
+        const varName = defaultValue.substring(1);
+        return window[varName] || defaultValue;
+      }
+      
+      return defaultValue;
+    };
+    
+    const gasUrl = getEnvValue('GAS_URL', script?.dataset.gasUrl);
+    const siteId = getEnvValue('SITE_ID', script?.dataset.siteId || 'default');
+    const debug = getEnvValue('DEBUG', script?.dataset.debug) === 'true';
+    
+    if (gasUrl && gasUrl !== 'YOUR_GAS_WEB_APP_URL' && !gasUrl.startsWith('$')) {
       DataJunction.init({
-        gasUrl: script.dataset.gasUrl,
-        siteId: script.dataset.siteId || 'default',
-        debug: script.dataset.debug === 'true'
+        gasUrl: gasUrl,
+        siteId: siteId,
+        debug: debug
       });
     }
   });
